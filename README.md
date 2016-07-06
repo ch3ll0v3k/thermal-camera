@@ -3,7 +3,7 @@
 Arduino and python-Qt
 
 ##### Screenshot
-![images](screenshoot-02.png)
+![images](screenshoot-01.png)
 
 ##### Schematic
 ![images](schematic.png)
