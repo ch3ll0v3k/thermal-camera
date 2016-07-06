@@ -1,0 +1,190 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+###################################################################################################
+
+if __name__ == "__main__":
+
+    # ------------------------------------------------------------------
+    from PyQt4.QtCore import QTimer, SIGNAL, SLOT, Qt, QPointF, QPoint, QRectF, QRect
+    from PyQt4.QtGui import  QMessageBox, QTextEdit, QDialog, QPolygonF,QPainter, QPen, QColor 
+    from PyQt4.QtGui import  QBrush, QMainWindow,QWidget,QToolTip,QApplication, QFont,QIcon,QAction
+    from PyQt4.QtGui import  QFrame,QListWidget,QComboBox,QCheckBox,QPushButton,QProgressBar,QLineEdit,QLabel
+    from PyQt4.QtGui import  QTextBrowser, QCursor, qApp, QDesktopWidget
+    from PyQt4.QtGui import  QGraphicsView, QGraphicsScene, QPicture, QPaintDevice
+    
+    # ------------------------------------------------------------------
+    import sys, requests, json, time, os, math
+    from random import randint
+    from threading import Timer
+    
+    from time import sleep
+    #from sys import stdout
+
+    # ------------------------------------------------------------------
+    from serial import *
+
+    # ------------------------------------------------------------------
+    # CUSTOMs
+    from modules.thermo_frame import ThermoFrame
+    # ------------------------------------------------------------------
+
+else:
+    exit();
+
+###################################################################################################
+class ThermoCam( QMainWindow ):
+
+    # =================================================================
+    def __init__(self, parent=None):
+
+        # -------------------------------------------------------------------
+        QMainWindow.__init__(self, parent=None);
+        qApp.setStyle( "Macintosh");
+
+        self.setWindowTitle("Thermo-Cam v1.0.0");
+        self.setWindowIcon( QIcon("Thermo-Cam.png") );
+        self.setStyleSheet( "QMainWindow{ background-color: #333; color: #fff; }" );
+
+        # -------------------------------------------------------------------
+        self.ALLOW_RUN                              = False;  
+        self.W                                      = 1000;
+        self.H                                      = 660;
+        self.setGeometry(10, 50, self.W, self.H);
+
+        self.DESKTOP                                = QDesktopWidget();
+        self.SCREEN                                 = self.DESKTOP.screenGeometry();
+
+        # -------------------------------------------------------------------
+        self.SERIAL                                 = None;
+        self.SERIAL_PORT                            = "/dev/ttyACM0";
+        self.SERIAL_BAUDRATE                        = 57600;
+        self.SERIAL_TIMEOUT                         = 0.1;
+
+        # -------------------------------------------------------------------
+        self.THERMO_FRAME                           = ThermoFrame( self );
+        self.MATRIX_ROW                             = ""; 
+
+        # -------------------------------------------------------------------
+        # -------------------------------------------------------------------
+        self.TIMER = QTimer( self );
+        self.show();
+
+        # -------------------------------------------------------------------
+
+    # =================================================================
+    def CONNECT(self):
+
+        # -------------------------------------------------------------------
+        try:
+
+            print("Connecting to: "+self.SERIAL_PORT );
+            self.SERIAL = Serial( 
+                self.SERIAL_PORT, baudrate=self.SERIAL_BAUDRATE, timeout=self.SERIAL_TIMEOUT );
+
+            return True;
+
+        except Exception as _err:
+            print("ERROR: "+str(_err));
+            return False;
+
+        # -------------------------------------------------------------------
+
+    # =================================================================
+    def START(self):
+
+        # -------------------------------------------------------------------
+        try:
+
+            self.ALLOW_RUN = True;
+            self.SERIAL.write("start,1,");
+            self.SERIAL.read(2048);
+
+            self.READ();
+            return True;
+
+        except Exception as _err:
+            print("ERROR: "+str(_err));
+            return False;
+        # -------------------------------------------------------------------
+
+    # =================================================================
+    def STOP(self):
+
+        # -------------------------------------------------------------------
+        try:
+
+            self.ALLOW_RUN = False;
+            self.SERIAL.write("stop,1,");
+            while self.SERIAL.readline():
+                self.SERIAL.readline()
+
+            return True;
+
+        except Exception as _err:
+            print("ERROR: "+str(_err));
+            return False;
+        # -------------------------------------------------------------------
+
+    # =================================================================
+    def HEAD_UP( self ):
+
+        # -------------------------------------------------------------------
+        self.SERIAL.write("head_up,10,");
+        while self.SERIAL.readline():
+            self.SERIAL.readline()
+
+        # -------------------------------------------------------------------
+
+    # =================================================================
+    def HEAD_DOWN( self ):
+
+        # -------------------------------------------------------------------
+        self.SERIAL.write("head_down,10,");
+        while self.SERIAL.readline():
+            self.SERIAL.readline()
+
+        # -------------------------------------------------------------------
+
+    # =================================================================
+    def READ(self):
+
+        # -------------------------------------------------------------------
+        try:
+
+            if not self.ALLOW_RUN: 
+                return;
+
+            self.from_serial = "";
+
+            _byte = self.SERIAL.read(1);
+
+            while _byte != "\n":
+
+                self.from_serial += _byte;
+                _byte = self.SERIAL.read(1);
+
+
+            #self.from_serial = self.SERIAL.readline().replace("\n", ""); # self.SERIAL.read(1024);
+            #print(self.from_serial);
+
+            self.MATRIX_ROW = self.from_serial;
+
+            self.THERMO_FRAME.UPDATE_ROW();
+
+
+            self.TIMER.singleShot(0, self.READ );
+            # -------------------------------------------------------------------
+
+        except Exception as _err:
+            print("ERROR: "+str(_err));
+
+
+
+
+###################################################################################################
+if __name__ == '__main__':
+    
+    App = QApplication( sys.argv );
+    _ThermoCam = ThermoCam();
+    sys.exit(App.exec_());
+
